@@ -38,7 +38,7 @@ risks:
     match: ["**/.env*", "docker-compose.yml"]
 rules:
   - id: "scope-enforcement"
-    check: "engine.isScoped(payload.files)"
+    check: { "var": "engine.isScoped" }
     action: "block"
     valueId: "security"
 ```

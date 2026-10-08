@@ -49,10 +49,20 @@ async def check_command(args):
             public_key = f.read()
             
     try:
-        config = load_policy(policy_path, public_key=public_key)
+        # 本地 CLI：没有公钥时明确警告并继续（人类操作员的入口）；
+        # 可编程接口 TrustedGuard 则是 fail-closed，必须显式 allow_unsigned_policy=True。
+        config = load_policy(policy_path, public_key=public_key, allow_unsigned=True)
     except Exception as e:
         console.print(f"[bold red]Error loading policy:[/bold red] {e}")
         sys.exit(1)
+
+    signature_verified = public_key is not None
+    if not signature_verified:
+        console.print(
+            "[bold yellow]⚠ WARNING:[/bold yellow] policy is NOT signature-verified "
+            "(no .ai/sovereign.pub). Anyone can edit it undetected.\n"
+            "  Fix: [bold]trusted-engine init[/bold] && [bold]trusted-engine sign[/bold]"
+        )
 
     manifesto_path = os.path.join(cwd, 'value_manifesto.yaml')
     manifesto = None
@@ -110,10 +120,12 @@ async def check_command(args):
     result_text = "✅ ALLOWED" if decision.allowed else "❌ BLOCKED"
     result_color = "green" if decision.allowed else "red"
     
+    value_text = f"{decision.valueScore:.2f}" if decision.valueScore is not None else "N/A"
     console.print(Panel(
         f"[bold {result_color}]Result: {result_text}[/bold {result_color}]\n"
         f"Risk Level: {decision.riskLevel.upper()}\n"
-        f"Value Score: {decision.valueScore:.2f if decision.valueScore is not None else 'N/A'}",
+        f"Value Score: {value_text}\n"
+        f"Signature verified: {signature_verified}",
         title="Trusted Agent Policy Report",
         expand=False
     ))

@@ -101,6 +101,7 @@ class Decision(BaseModel):
     accountability: Optional[Accountability] = None
     anomalyReport: Optional[AnomalyReport] = None
     auditLog: str
+    signatureVerified: Optional[bool] = None
 
 class DecisionTrace(Decision):
     proposal: Proposal

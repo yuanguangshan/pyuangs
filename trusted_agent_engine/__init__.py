@@ -36,22 +36,37 @@ class TrustedGuard:
     """
     
     @staticmethod
-    async def evaluate(workspace_root: str, proposal: Proposal) -> Decision:
+    async def evaluate(workspace_root: str, proposal: Proposal,
+                       *, allow_unsigned_policy: bool = False) -> Decision:
         """
         One-click decision check.
+
+        Fail-closed by default: if ``.ai/sovereign.pub`` is missing the policy
+        cannot be verified, so we refuse instead of silently skipping the
+        check (otherwise deleting that one file disables the whole guarantee).
+        Pass ``allow_unsigned_policy=True`` to opt out explicitly.
         """
         policy_path = os.path.join(workspace_root, 'agent.policy.yaml')
         manifesto_path = os.path.join(workspace_root, 'value_manifesto.yaml')
         pub_key_path = os.path.join(workspace_root, '.ai', 'sovereign.pub')
 
-        # 1. Load sovereign public key (if exists)
+        # 1. Load sovereign public key
         public_key = None
         if os.path.exists(pub_key_path):
             with open(pub_key_path, 'r', encoding='utf-8') as f:
                 public_key = f.read()
+        elif not allow_unsigned_policy:
+            raise ValueError(
+                f"[Sovereignty] Sovereign public key not found at {pub_key_path}. "
+                "Refusing to evaluate an unverifiable policy (fail-closed). "
+                "Run 'trusted-engine init' to create keys, or pass "
+                "allow_unsigned_policy=True to opt out explicitly."
+            )
+        else:
+            print("[Sovereignty] WARNING: policy evaluated WITHOUT signature verification.")
 
         # 2. Load policy (with signature verification)
-        config = load_policy(policy_path, public_key=public_key)
+        config = load_policy(policy_path, public_key=public_key, allow_unsigned=True)
 
         # 3. Load manifesto (optional)
         manifesto = None
@@ -63,6 +78,7 @@ class TrustedGuard:
         # 4. Execute evaluation
         engine = PolicyEngine(config, manifesto, workspace_root)
         decision = engine.evaluate(proposal)
+        decision.signatureVerified = public_key is not None
 
         # 5. Record trace to ContextBank
         bank = ContextBank(workspace_root)

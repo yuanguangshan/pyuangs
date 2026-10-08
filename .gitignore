@@ -1,2 +1,10 @@
 node_modules
 .ai
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/

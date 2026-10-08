@@ -45,9 +45,13 @@ class AnomalyDetector:
         if re.search(hex_pattern, diff) or re.search(base64_pattern, diff):
             return True
 
-        # Check for excessive non-ASCII characters
-        non_ascii_pattern = r'[^\x00-\x7F]'
-        matches = re.findall(non_ascii_pattern, diff)
+        # 只检查真正的不可见/控制字符（零宽、Bidi 覆写、控制码）。
+        # 不能用"非 ASCII"当混淆信号：中文/日文注释是正常内容，
+        # 本项目通篇中文，用 non-ASCII 会把合法改动误判成"二进制走私"。
+        invisible_pattern = (r'[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F'
+                             r'\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064'
+                             r'\u2066-\u2069\uFEFF]')
+        matches = re.findall(invisible_pattern, diff)
         if matches and len(matches) > 20:
             return True
 
